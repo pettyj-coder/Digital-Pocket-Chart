@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Phonics Pocket Chart & Word Chainer</title>
+    <!-- Tailwind CSS for base styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lexend & Font Inter for clean, dyslexia-friendly primary reading typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome for UI Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body {
+            font-family: 'Lexend', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            background-color: #1e293b;
+        }
+
+        /* Felt Pocket Chart Visual Texture */
+        .pocket-chart-bg {
+            background-color: #0f4c81;
+            background-image: radial-gradient(#1e5d97 15%, transparent 16%), radial-gradient(#1e5d97 15%, transparent 16%);
+            background-size: 30px 30px;
+            background-position: 0 0, 15px 15px;
+            box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Pocket Slot Effect */
+        .pocket-slot {
+            background: linear-gradient(180deg, #1d3557 0%, #457b9d 100%);
+            border-bottom: 6px solid #a8dadc;
+            box-shadow: inset 0 8px 10px rgba(0,0,0,0.3), 0 4px 6px rgba(0,0,0,0.2);
+            position: relative;
+        }
+
+        .pocket-slot::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 28%;
+            background: rgba(255, 255, 255, 0.15);
+            border-top: 2px solid rgba(255, 255, 255, 0.3);
+            pointer-events: none;
+            border-bottom-left-radius: 0.75rem;
+            border-bottom-right-radius: 0.75rem;
+        }
+
+        /* Tile Styling */
+        .letter-tile {
+            font-family: 'Lexend', sans-serif;
+            box-shadow: 0 6px 0 0 #cbd5e1, 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            transition: transform 0.08s ease, box-shadow 0.08s ease;
+            touch-action: none;
+        }
+
+        .letter-tile:active {
+            transform: translateY(3px);
+            box-shadow: 0 3px 0 0 #cbd5e1, 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+        }
+
+        .vowel-tile {
+            background: linear-gradient(145deg, #fff5f5, #ffe3e3);
+            border: 4px solid #ef4444;
+            color: #dc2626;
+        }
+
+        .consonant-tile {
+            background: linear-gradient(145deg, #f0f9ff, #e0f2fe);
+            border: 4px solid #0284c7;
+            color: #0369a1;
+        }
+
+        /* Drag Ghost Tile Styling */
+        .dragging-ghost {
+            position: fixed;
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0.92;
+            transform: scale(1.1) rotate(-2deg);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            transition: none !important;
+        }
+
+        /* Highlighted Box on Drag Over */
+        .drag-target-hover {
+            border-color: #f59e0b !important;
+            background: #fef3c7 !important;
+            transform: scale(1.03);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            height: 10px;
+            width: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 5px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between text-slate-100 overflow-x-hidden">
+
+    <!-- TOP TOOLBAR / TEACHER CONTROLS -->
+    <header class="bg-slate-900 border-b border-slate-700 px-4 py-3 shadow-md z-20">
+        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+            
+            <!-- Branding -->
+            <div class="flex items-center gap-3">
+                <div class="bg-amber-500 text-slate-950 font-black p-2.5 rounded-xl shadow-lg text-xl flex items-center justify-center">
+                    <i class="fa-solid font-bold">abc</i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-extrabold tracking-tight text-white leading-none">Phonics Chainer</h1>
+                    <span class="text-xs font-semibold text-amber-400 tracking-wide uppercase">Kindergarten Digital Chart</span>
+                </div>
+            </div>
+
+            <!-- Box Count Selector -->
+            <div class="flex items-center bg-slate-800 p-1.5 rounded-xl border border-slate-700">
+                <span class="text-xs font-bold text-slate-400 mr-2 ml-1 uppercase tracking-wider hidden sm:inline">Boxes:</span>
+                <div class="flex gap-1">
+                    <button onclick="setBoxCount(2)" id="btn-box-2" class="box-btn px-3 py-1.5 rounded-lg font-bold text-sm transition-all bg-slate-700 text-slate-300 hover:bg-slate-600">2</button>
+                    <button onclick="setBoxCount(3)" id="btn-box-3" class="box-btn px-3 py-1.5 rounded-lg font-bold text-sm transition-all bg-amber-500 text-slate-950 shadow-md">3</button>
+                    <button onclick="setBoxCount(4)" id="btn-box-4" class="box-btn px-3 py-1.5 rounded-lg font-bold text-sm transition-all bg-slate-700 text-slate-300 hover:bg-slate-600">4</button>
+                    <button onclick="setBoxCount(5)" id="btn-box-5" class="box-btn px-3 py-1.5 rounded-lg font-bold text-sm transition-all bg-slate-700 text-slate-300 hover:bg-slate-600">5</button>
+                </div>
+            </div>
+
+            <!-- Word Chain Presets -->
+            <div class="flex items-center gap-2 bg-slate-800 p-1.5 rounded-xl border border-slate-700">
+                <i class="fa-solid fa-link text-amber-400 ml-2"></i>
+                <select id="chain-select" onchange="loadPresetChain(this.value)" class="bg-slate-900 text-amber-300 text-xs font-bold py-1.5 px-2 rounded-lg border border-slate-700 focus:outline-none focus:border-amber-400">
+                    <option value="">-- Quick Word Chains --</option>
+                    <option value="mat-sat-sit-sip-tip-top">Chain 1: mat → sat → sit → sip</option>
+                    <option value="cat-can-man-pan-pin-pig">Chain 2: cat → can → man → pan</option>
+                    <option value="hop-hot-hit-hat-hat-lap">Chain 3: hop → hot → hit → hat</option>
+                    <option value="bug-rug-run-sun-sub-cub">Chain 4: bug → rug → run → sun</option>
+                    <option value="ship-shop-shot-shut">Chain 5 (4-Ltr): ship → shop → shut</option>
+                </select>
+                <button onclick="nextChainStep()" title="Advance to next word in chain" class="bg-amber-500 hover:bg-amber-400 text-slate-950 px-2.5 py-1.5 rounded-lg text-xs font-extrabold flex items-center gap-1 shadow">
+                    Next <i class="fa-solid fa-forward"></i>
+                </button>
+            </div>
+
+            <!-- Action Controls -->
+            <div class="flex items-center gap-2">
+                <button onclick="undo()" id="btn-undo" disabled title="Undo Action" class="p-2.5 rounded-xl bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700 disabled:opacity-40 disabled:hover:bg-slate-800 transition">
+                    <i class="fa-solid fa-rotate-left"></i>
+                </button>
+                <button onclick="redo()" id="btn-redo" disabled title="Redo Action" class="p-2.5 rounded-xl bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700 disabled:opacity-40 disabled:hover:bg-slate-800 transition">
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+                <button onclick="toggleAudio()" id="btn-audio" title="Toggle Sound On/Off" class="px-3 py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs flex items-center gap-2 hover:bg-emerald-500 shadow">
+                    <i class="fa-solid fa-volume-high" id="audio-icon"></i> <span class="hidden md:inline" id="audio-label">Phonics Audio</span>
+                </button>
+                <button onclick="clearAllBoxes()" title="Clear all boxes" class="px-3 py-2 rounded-xl bg-rose-600 text-white font-bold text-xs flex items-center gap-2 hover:bg-rose-500 shadow">
+                    <i class="fa-solid fa-trash-can"></i> Clear
+                </button>
+            </div>
+
+        </div>
+    </header>
+
+    <!-- MAIN INTERACTIVE DISPLAY AREA -->
+    <main class="flex-1 flex flex-col justify-between items-center p-4 md:p-6 pocket-chart-bg relative min-h-[500px]">
+        
+        <!-- Subtle Pocket Chart Top Bar Graphic -->
+        <div class="w-full max-w-5xl bg-amber-900 border-b-4 border-amber-950 h-5 rounded-t-lg shadow-md flex justify-between px-8 items-center">
+            <div class="w-3 h-3 rounded-full bg-slate-900 opacity-60"></div>
+            <div class="w-3 h-3 rounded-full bg-slate-900 opacity-60"></div>
+        </div>
+
+        <!-- ELKONIN BOXES CONTAINER -->
+        <div class="w-full max-w-5xl my-auto py-6">
+            <div id="elkonin-boxes-row" class="flex justify-center items-center gap-3 md:gap-6 px-2">
+                <!-- Elkonin Boxes dynamically generated here -->
+            </div>
+        </div>
+
+        <!-- ASSEMBLED WORD DISPLAY & PHONICS BLENDING BAR -->
+        <div class="w-full max-w-3xl bg-slate-900/90 backdrop-blur border-2 border-slate-700 rounded-2xl p-4 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4 my-2">
+            
+            <div class="flex items-center gap-3">
+                <span class="text-xs font-black uppercase text-slate-400 tracking-widest">Word:</span>
+                <div id="word-display" class="text-3xl md:text-5xl font-extrabold tracking-widest text-amber-300 min-h-[48px] flex items-center font-mono">
+                    ---
+                </div>
+            </div>
+
+            <!-- Blending / Read Button -->
+            <div class="flex items-center gap-3 w-full sm:w-auto">
+                <button onclick="readFullWord()" class="flex-1 sm:flex-none px-5 py-3 bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-black rounded-xl text-base flex items-center justify-center gap-2.5 shadow-lg transition">
+                    <i class="fa-solid fa-play text-lg"></i>
+                    <span>Read Word</span>
+                </button>
+                <button onclick="soundOutPhonemes()" class="px-4 py-3 bg-sky-600 hover:bg-sky-500 active:scale-95 text-white font-black rounded-xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg transition">
+                    <i class="fa-solid fa-bullhorn"></i>
+                    <span>Sound Out</span>
+                </button>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- BOTTOM REUSABLE LETTER BANK -->
+    <footer class="bg-slate-900 border-t-2 border-slate-700 p-4 md:p-6 z-20">
+        <div class="max-w-7xl mx-auto">
+            
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-3">
+                    <h2 class="text-sm font-extrabold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-cubes text-amber-400"></i> Infinite Alphabet Bank
+                    </h2>
+                    <span class="text-xs text-slate-400 hidden sm:inline">(Drag any letter into a slot above)</span>
+                </div>
+
+                <!-- Legend & Hide Bank Toggle -->
+                <div class="flex items-center gap-4">
+                    <div class="hidden md:flex items-center gap-3 text-xs font-bold">
+                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-red-500 inline-block"></span> Vowels</span>
+                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-sky-500 inline-block"></span> Consonants</span>
+                    </div>
+                    <button onclick="toggleLetterBank()" id="btn-toggle-bank" class="text-xs font-bold text-slate-400 hover:text-white bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
+                        <i class="fa-solid fa-eye-slash mr-1"></i> Hide Bank
+                    </button>
+                </div>
+            </div>
+
+            <!-- Letter Bank Container -->
+            <div id="letter-bank" class="flex flex-wrap justify-center gap-2 sm:gap-3 p-3 bg-slate-950/60 rounded-2xl border border-slate-800 max-h-[220px] overflow-y-auto transition-all">
+                <!-- Alphabet tiles dynamically rendered here -->
+            </div>
+
+        </div>
+    </footer>
+
+    <script>
+        /* GLOBAL APPLICATION STATE */
+        const VOWELS = new Set(['a', 'e', 'i', 'o', 'u']);
+        const ALPHABET = 'abcdefghijklmnopqrstuvwxyz'.split('');
+        
+        let activeBoxCount = 3;
+        let boxContents = ['', '', '', '', '']; // Max 5 boxes state
+        let audioEnabled = true;
+        let isBankVisible = true;
+
+        // Undo / Redo stacks
+        let historyStack = [];
+        let redoStack = [];
+
+        // Active Preset Chain state
+        let currentChain = [];
+        let currentChainIndex = 0;
+
+        // Phoneme audio dictionary for phonics instruction
+        const PHONEME_MAP = {
+            'a': 'ah', 'b': 'buh', 'c': 'kuh', 'd': 'duh', 'e': 'eh', 
+            'f': 'fff', 'g': 'guh', 'h': 'huh', 'i': 'ih', 'j': 'juh', 
+            'k': 'kuh', 'l': 'lll', 'm': 'mmm', 'n': 'nnn', 'o': 'ah', 
+            'p': 'puh', 'q': 'kwuh', 'r': 'rrr', 's': 'sss', 't': 'tuh', 
+            'u': 'uh', 'v': 'vvv', 'w': 'wuh', 'x': 'ks', 'y': 'yuh', 'z': 'zzz'
+        };
+
+        /* UNIFIED POINTER DRAG AND DROP SYSTEM */
+        let activeDrag = null; // Holds info about current drag operation
+
+        function initApp() {
+            renderElkoninBoxes();
+            renderLetterBank();
+            updateWordDisplay();
+            saveState();
+        }
+
+        // Render Elkonin slots based on active count
+        function renderElkoninBoxes() {
+            const container = document.getElementById('elkonin-boxes-row');
+            container.innerHTML = '';
+
+            for (let i = 0; i < activeBoxCount; i++) {
+                const box = document.createElement('div');
+                box.className = `pocket-slot w-24 h-32 sm:w-32 sm:h-40 md:w-40 md:h-48 rounded-2xl flex flex-col items-center justify-center relative transition-all`;
+                box.dataset.boxIndex = i;
+
+                const letter = boxContents[i];
+
+                if (letter) {
+                    const tile = createTileElement(letter, 'box', i);
+                    box.appendChild(tile);
+
+                    // Add subtle remove button
+                    const removeBtn = document.createElement('button');
+                    removeBtn.className = 'absolute -top-2 -right-2 bg-rose-600 hover:bg-rose-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs font-bold shadow-lg z-10';
+                    removeBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+                    removeBtn.title = 'Remove letter';
+                    removeBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        removeLetterFromBox(i);
+                    };
+                    box.appendChild(removeBtn);
+                } else {
+                    // Empty Box Placeholder Number
+                    const num = document.createElement('span');
+                    num.className = 'text-slate-400/40 text-2xl font-black select-none pointer-events-none';
+                    num.innerText = i + 1;
+                    box.appendChild(num);
+                }
+
+                container.appendChild(box);
+            }
+        }
+
+        // Render the infinite reusable letter bank
+        function renderLetterBank() {
+            const bank = document.getElementById('letter-bank');
+            bank.innerHTML = '';
+
+            ALPHABET.forEach(char => {
+                const tile = createTileElement(char, 'bank');
+                bank.appendChild(tile);
+            });
+        }
+
+        // Helper to construct interactive letter tiles
+        function createTileElement(char, source, boxIndex = null) {
+            const tile = document.createElement('div');
+            const isVowel = VOWELS.has(char);
+            
+            tile.className = `letter-tile ${isVowel ? 'vowel-tile' : 'consonant-tile'} w-20 h-24 sm:w-24 sm:h-28 md:w-28 md:h-32 rounded-2xl flex items-center justify-center text-4xl sm:text-5xl md:text-6xl font-black cursor-grab active:cursor-grabbing select-none relative`;
+            tile.innerText = char;
+            tile.dataset.char = char;
+            tile.dataset.source = source;
+            if (boxIndex !== null) tile.dataset.boxIndex = boxIndex;
+
+            // Unified Pointer Events for Touch + Mouse
+            tile.addEventListener('pointerdown', handlePointerDown);
+            
+            // Tap/Click to play phoneme sound
+            tile.addEventListener('click', (e) => {
+                if (!activeDrag || !activeDrag.hasMoved) {
+                    playPhoneme(char);
+                }
+            });
+
+            return tile;
+        }
+
+        function handlePointerDown(e) {
+            // Only primary mouse button or touch
+            if (e.button && e.button !== 0) return;
+
+            const tile = e.currentTarget;
+            const char = tile.dataset.char;
+            const source = tile.dataset.source;
+            const boxIndex = tile.dataset.boxIndex !== undefined ? parseInt(tile.dataset.boxIndex) : null;
+
+            const rect = tile.getBoundingClientRect();
+
+            // Create Visual Floating Ghost Tile
+            const ghost = tile.cloneNode(true);
+            ghost.classList.add('dragging-ghost');
+            ghost.style.width = `${rect.width}px`;
+            ghost.style.height = `${rect.height}px`;
+            ghost.style.left = `${rect.left}px`;
+            ghost.style.top = `${rect.top}px`;
+            document.body.appendChild(ghost);
+
+            activeDrag = {
+                char,
+                source,
+                boxIndex,
+                ghost,
+                startX: e.clientX,
+                startY: e.clientY,
+                offsetX: e.clientX - rect.left,
+                offsetY: e.clientY - rect.top,
+                hasMoved: false
+            };
+
+            // Set pointer capture if supported
+            tile.setPointerCapture(e.pointerId);
+
+            const handlePointerMove = (moveEvt) => {
+                if (!activeDrag) return;
+
+                const dist = Math.hypot(moveEvt.clientX - activeDrag.startX, moveEvt.clientY - activeDrag.startY);
+                if (dist > 5) activeDrag.hasMoved = true;
+
+                // Move ghost tile
+                activeDrag.ghost.style.left = `${moveEvt.clientX - activeDrag.offsetX}px`;
+                activeDrag.ghost.style.top = `${moveEvt.clientY - activeDrag.offsetY}px`;
+
+                // Highlight box under cursor
+                highlightHoveredBox(moveEvt.clientX, moveEvt.clientY);
+            };
+
+            const handlePointerUp = (upEvt) => {
+                tile.releasePointerCapture(e.pointerId);
+                tile.removeEventListener('pointermove', handlePointerMove);
+                tile.removeEventListener('pointerup', handlePointerUp);
+
+                if (activeDrag) {
+                    if (activeDrag.ghost) activeDrag.ghost.remove();
+                    clearHighlights();
+
+                    if (activeDrag.hasMoved) {
+                        dropLetter(upEvt.clientX, upEvt.clientY);
+                    }
+                    activeDrag = null;
+                }
+            };
+
+            tile.addEventListener('pointermove', handlePointerMove);
+            tile.addEventListener('pointerup', handlePointerUp);
+        }
+
+        // Highlight Elkonin Box currently under the cursor
+        function highlightHoveredBox(x, y) {
+            clearHighlights();
+            const box = getBoxAtPosition(x, y);
+            if (box) {
+                box.classList.add('drag-target-hover');
+            }
+        }
+
+        function clearHighlights() {
+            document.querySelectorAll('.pocket-slot').forEach(box => {
+                box.classList.remove('drag-target-hover');
+            });
+        }
+
+        // Find which box is located at x, y screen coordinates
+        function getBoxAtPosition(x, y) {
+            const boxes = document.querySelectorAll('.pocket-slot');
+            for (const box of boxes) {
+                const rect = box.getBoundingClientRect();
+                if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+                    return box;
+                }
+            }
+            return null;
+        }
+
+        // Process Dropping a Letter Tile
+        function dropLetter(x, y) {
+            const targetBox = getBoxAtPosition(x, y);
+
+            if (targetBox) {
+                const targetIndex = parseInt(targetBox.dataset.boxIndex);
+
+                // If coming from another box, clear old slot
+                if (activeDrag.source === 'box' && activeDrag.boxIndex !== null) {
+                    if (activeDrag.boxIndex === targetIndex) return; // Dropped on same box
+                    boxContents[activeDrag.boxIndex] = '';
+                }
+
+                // Place copy into box (Replacing any existing letter)
+                boxContents[targetIndex] = activeDrag.char;
+                playPhoneme(activeDrag.char);
+
+                saveState();
+                renderElkoninBoxes();
+                updateWordDisplay();
+            } else if (activeDrag.source === 'box' && activeDrag.boxIndex !== null) {
+                // Dragged out of boxes into empty area -> Remove letter
+                removeLetterFromBox(activeDrag.boxIndex);
+            }
+        }
+
+        function removeLetterFromBox(index) {
+            boxContents[index] = '';
+            saveState();
+            renderElkoninBoxes();
+            updateWordDisplay();
+        }
+
+        function updateWordDisplay() {
+            const wordDisplay = document.getElementById('word-display');
+            let builtWord = '';
+            let displayHTML = '';
+
+            for (let i = 0; i < activeBoxCount; i++) {
+                const char = boxContents[i];
+                if (char) {
+                    builtWord += char;
+                    displayHTML += `<span class="px-1 text-white">${char}</span>`;
+                } else {
+                    displayHTML += `<span class="px-1 text-slate-600">_</span>`;
+                }
+            }
+
+            wordDisplay.innerHTML = displayHTML || '---';
+        }
+
+        function getCurrentWord() {
+            let word = '';
+            for (let i = 0; i < activeBoxCount; i++) {
+                if (boxContents[i]) word += boxContents[i];
+            }
+            return word;
+        }
+
+        function setBoxCount(count) {
+            activeBoxCount = count;
+            
+            // Update button styles
+            document.querySelectorAll('.box-btn').forEach(btn => {
+                btn.className = 'box-btn px-3 py-1.5 rounded-lg font-bold text-sm transition-all bg-slate-700 text-slate-300 hover:bg-slate-600';
+            });
+            const activeBtn = document.getElementById(`btn-box-${count}`);
+            if (activeBtn) {
+                activeBtn.className = 'box-btn px-3 py-1.5 rounded-lg font-bold text-sm transition-all bg-amber-500 text-slate-950 shadow-md';
+            }
+
+            renderElkoninBoxes();
+            updateWordDisplay();
+            saveState();
+        }
+
+        function clearAllBoxes() {
+            boxContents = ['', '', '', '', ''];
+            renderElkoninBoxes();
+            updateWordDisplay();
+            saveState();
+        }
+
+        /* PHONICS AUDIO SYNTHESIS ENGINE */
+        function toggleAudio() {
+            audioEnabled = !audioEnabled;
+            const btn = document.getElementById('btn-audio');
+            const icon = document.getElementById('audio-icon');
+            const label = document.getElementById('audio-label');
+
+            if (audioEnabled) {
+                btn.className = 'px-3 py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs flex items-center gap-2 hover:bg-emerald-500 shadow';
+                icon.className = 'fa-solid fa-volume-high';
+                label.innerText = 'Phonics Audio';
+            } else {
+                btn.className = 'px-3 py-2 rounded-xl bg-slate-700 text-slate-400 font-bold text-xs flex items-center gap-2 hover:bg-slate-600 shadow';
+                icon.className = 'fa-solid fa-volume-xmark';
+                label.innerText = 'Muted';
+            }
+        }
+
+        function playPhoneme(char) {
+            if (!audioEnabled || !('speechSynthesis' in window)) return;
+
+            window.speechSynthesis.cancel(); // Stop prior speech
+            const phonemeSound = PHONEME_MAP[char.toLowerCase()] || char;
+            const utterance = new SpeechSynthesisUtterance(phonemeSound);
+            utterance.rate = 0.85; // Slower for clear phonics
+            utterance.pitch = 1.1; // Friendly tone
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function readFullWord() {
+            const word = getCurrentWord();
+            if (!word || !('speechSynthesis' in window)) return;
+
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(word);
+            utterance.rate = 0.8;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        async function soundOutPhonemes() {
+            if (!audioEnabled) return;
+            const letters = [];
+            for (let i = 0; i < activeBoxCount; i++) {
+                if (boxContents[i]) letters.push(boxContents[i]);
+            }
+
+            if (letters.length === 0) return;
+
+            for (const char of letters) {
+                playPhoneme(char);
+                await new Promise(resolve => setTimeout(resolve, 650));
+            }
+
+            // Finally read whole word
+            await new Promise(resolve => setTimeout(resolve, 300));
+            readFullWord();
+        }
+
+        /* PRESET WORD CHAINING CONTROLS */
+        function loadPresetChain(chainKey) {
+            if (!chainKey) return;
+            currentChain = chainKey.split('-');
+            currentChainIndex = 0;
+            loadWordIntoBoxes(currentChain[0]);
+        }
+
+        function nextChainStep() {
+            if (currentChain.length === 0) return;
+            currentChainIndex = (currentChainIndex + 1) % currentChain.length;
+            loadWordIntoBoxes(currentChain[currentChainIndex]);
+        }
+
+        function loadWordIntoBoxes(word) {
+            clearAllBoxes();
+            if (word.length !== activeBoxCount && word.length <= 5) {
+                setBoxCount(word.length);
+            }
+
+            for (let i = 0; i < Math.min(word.length, activeBoxCount); i++) {
+                boxContents[i] = word[i];
+            }
+
+            renderElkoninBoxes();
+            updateWordDisplay();
+            saveState();
+        }
+
+        /* UNDO / REDO HISTORY SYSTEM */
+        function saveState() {
+            const state = {
+                boxCount: activeBoxCount,
+                contents: [...boxContents]
+            };
+            
+            // Prevent redundant duplicate history entries
+            if (historyStack.length > 0) {
+                const last = historyStack[historyStack.length - 1];
+                if (last.boxCount === state.boxCount && JSON.stringify(last.contents) === JSON.stringify(state.contents)) {
+                    return;
+                }
+            }
+
+            historyStack.push(state);
+            redoStack = []; // Clear redo stack on new action
+            updateHistoryButtons();
+        }
+
+        function undo() {
+            if (historyStack.length <= 1) return;
+            
+            const current = historyStack.pop();
+            redoStack.push(current);
+
+            const previous = historyStack[historyStack.length - 1];
+            activeBoxCount = previous.boxCount;
+            boxContents = [...previous.contents];
+
+            setBoxCount(activeBoxCount);
+            renderElkoninBoxes();
+            updateWordDisplay();
+            updateHistoryButtons();
+        }
+
+        function redo() {
+            if (redoStack.length === 0) return;
+
+            const next = redoStack.pop();
+            historyStack.push(next);
+
+            activeBoxCount = next.boxCount;
+            boxContents = [...next.contents];
+
+            setBoxCount(activeBoxCount);
+            renderElkoninBoxes();
+            updateWordDisplay();
+            updateHistoryButtons();
+        }
+
+        function updateHistoryButtons() {
+            document.getElementById('btn-undo').disabled = historyStack.length <= 1;
+            document.getElementById('btn-redo').disabled = redoStack.length === 0;
+        }
+
+        /* LETTER BANK VISIBILITY TOGGLE */
+        function toggleLetterBank() {
+            const bank = document.getElementById('letter-bank');
+            const btn = document.getElementById('btn-toggle-bank');
+            isBankVisible = !isBankVisible;
+
+            if (isBankVisible) {
+                bank.style.display = 'flex';
+                btn.innerHTML = '<i class="fa-solid fa-eye-slash mr-1"></i> Hide Bank';
+            } else {
+                bank.style.display = 'none';
+                btn.innerHTML = '<i class="fa-solid fa-eye mr-1"></i> Show Bank';
+            }
+        }
+
+        // Initialize application on window load
+        window.onload = initApp;
+    </script>
+</body>
+</html>
